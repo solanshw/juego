@@ -498,6 +498,12 @@ void drawPixelSprite(HDC hdc, int originX, int originY, int pixelSize, const std
                 case 'S':
                     color = RGB(255, 244, 130);
                     break;
+                case 'G':
+                    color = RGB(52, 184, 74);
+                    break;
+                case 'L':
+                    color = RGB(126, 232, 110);
+                    break;
                 default:
                     shouldDraw = false;
                     color = RGB(0, 0, 0);
@@ -518,6 +524,66 @@ void drawPixelSprite(HDC hdc, int originX, int originY, int pixelSize, const std
     }
 }
 
+void drawPolygonColor(HDC hdc, const std::vector<POINT>& points, COLORREF fill, COLORREF stroke, int strokeWidth = 1) {
+    if (points.empty()) {
+        return;
+    }
+
+    HBRUSH brush = CreateSolidBrush(fill);
+    HBRUSH oldBrush = static_cast<HBRUSH>(SelectObject(hdc, brush));
+    HPEN pen = CreatePen(PS_SOLID, strokeWidth, stroke);
+    HPEN oldPen = static_cast<HPEN>(SelectObject(hdc, pen));
+    Polygon(hdc, points.data(), static_cast<int>(points.size()));
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(brush);
+    DeleteObject(pen);
+}
+
+void drawPolylineColor(HDC hdc, const std::vector<POINT>& points, COLORREF color, int width) {
+    if (points.size() < 2) {
+        return;
+    }
+
+    HPEN pen = CreatePen(PS_SOLID, width, color);
+    HPEN oldPen = static_cast<HPEN>(SelectObject(hdc, pen));
+    MoveToEx(hdc, points[0].x, points[0].y, nullptr);
+    for (size_t i = 1; i < points.size(); ++i) {
+        LineTo(hdc, points[i].x, points[i].y);
+    }
+    SelectObject(hdc, oldPen);
+    DeleteObject(pen);
+}
+
+void drawBananaShape(HDC hdc, int centerX, int centerY, double scale, bool flipHorizontal = false) {
+    auto pointAt = [&](int dx, int dy) {
+        POINT point;
+        point.x = static_cast<LONG>(std::lround(centerX + (flipHorizontal ? -dx : dx) * scale));
+        point.y = static_cast<LONG>(std::lround(centerY + dy * scale));
+        return point;
+    };
+
+    std::vector<POINT> body = {
+        pointAt(-24, -2), pointAt(-20, -8), pointAt(-13, -12), pointAt(-4, -14),
+        pointAt(6, -13), pointAt(14, -9), pointAt(20, -3), pointAt(24, 4),
+        pointAt(20, 7), pointAt(12, 6), pointAt(4, 3), pointAt(-2, 2),
+        pointAt(-8, 3), pointAt(-14, 7), pointAt(-19, 11), pointAt(-23, 8),
+        pointAt(-20, 3)
+    };
+
+    std::vector<POINT> stem = {
+        pointAt(-22, -7), pointAt(-18, -15), pointAt(-14, -14), pointAt(-16, -7)
+    };
+
+    std::vector<POINT> highlight = {
+        pointAt(-14, -7), pointAt(-7, -10), pointAt(1, -10), pointAt(9, -7), pointAt(14, -3)
+    };
+
+    drawPolygonColor(hdc, body, RGB(52, 184, 74), RGB(18, 102, 36), 2);
+    drawPolygonColor(hdc, stem, RGB(86, 58, 24), RGB(60, 40, 18), 1);
+    drawPolylineColor(hdc, highlight, RGB(152, 242, 136), std::max(1, static_cast<int>(std::lround(scale * 2.0))));
+}
+
 void drawSunAndBanana(HDC hdc) {
     const std::vector<std::string> sun = {
         "...Y...Y...",
@@ -531,15 +597,8 @@ void drawSunAndBanana(HDC hdc) {
         "...Y...Y..."
     };
 
-    const std::vector<std::string> banana = {
-        "..YYY.",
-        ".YSSY.",
-        "YSSSY.",
-        ".YY..."
-    };
-
     drawPixelSprite(hdc, WINDOW_WIDTH / 2 - 28, 10, 4, sun);
-    drawPixelSprite(hdc, WINDOW_WIDTH / 2 + 120, 55, 4, banana);
+    drawBananaShape(hdc, WINDOW_WIDTH / 2 + 160, 72, 1.35, false);
 }
 
 void drawPlayer(HDC hdc, const Player& player) {
@@ -550,16 +609,16 @@ void drawPlayer(HDC hdc, const Player& player) {
     int y = player.position.y;
     int dir = (player.position.x > WINDOW_WIDTH / 2) ? -1 : 1;
 
-    COLORREF outline = RGB(88, 52, 30);
-    COLORREF fur = RGB(180, 118, 78);
-    COLORREF chest = RGB(228, 186, 146);
-    COLORREF face = RGB(236, 198, 156);
+    COLORREF outline = RGB(0, 0, 0);
+    COLORREF fur = RGB(18, 18, 18);
+    COLORREF chest = RGB(42, 42, 42);
+    COLORREF face = RGB(62, 62, 62);
 
     fillEllipseColor(hdc, x - 12, y - 78, x + 12, y - 52, fur, outline, 2);
     fillEllipseColor(hdc, x - 9, y - 74, x + 9, y - 57, face, outline, 1);
-    fillCircle(hdc, x - 4, y - 68, 1, RGB(36, 28, 24));
-    fillCircle(hdc, x + 4, y - 68, 1, RGB(36, 28, 24));
-    fillRectColor(hdc, x - 5, y - 63, x + 5, y - 61, RGB(120, 80, 60));
+    fillCircle(hdc, x - 4, y - 68, 1, RGB(210, 210, 210));
+    fillCircle(hdc, x + 4, y - 68, 1, RGB(210, 210, 210));
+    fillRectColor(hdc, x - 5, y - 63, x + 5, y - 61, RGB(90, 90, 90));
 
     fillEllipseColor(hdc, x - 25, y - 58, x + 25, y - 10, fur, outline, 2);
     fillEllipseColor(hdc, x - 14, y - 47, x + 14, y - 18, chest, outline, 1);
@@ -618,7 +677,13 @@ void paintScene(HDC hdc) {
     drawPlayer(hdc, game.players[1]);
 
     if (game.projectile.active) {
-        fillCircle(hdc, static_cast<int>(game.projectile.x), static_cast<int>(game.projectile.y), 6, RGB(247, 209, 84));
+        drawBananaShape(
+            hdc,
+            static_cast<int>(game.projectile.x),
+            static_cast<int>(game.projectile.y),
+            0.35,
+            game.projectile.vx < 0.0
+        );
     }
 
     if (game.explosion.active) {
@@ -637,7 +702,8 @@ void paintScene(HDC hdc) {
     drawTextLine(hdc, WINDOW_WIDTH - 160, 64, ("Angle:" + std::to_string(game.currentPlayer == 1 ? game.angle : 0)), 22, RGB(255, 255, 255));
     drawTextLine(hdc, WINDOW_WIDTH - 160, 90, ("Power:" + std::to_string(game.currentPlayer == 1 ? game.power : 0)), 22, RGB(255, 255, 255));
 
-    drawTextLine(hdc, 12, WINDOW_HEIGHT - 48, "Controles: Arriba/Abajo = angulo   Izquierda/Derecha = potencia   Espacio = disparar", 18, RGB(240, 240, 240));
+    drawTextLine(hdc, WINDOW_WIDTH / 2 - 295, WINDOW_HEIGHT - 74, game.status, 18, RGB(255, 230, 180), FW_BOLD);
+    drawTextLine(hdc, 12, WINDOW_HEIGHT - 48, "Controles: Arriba/Abajo = angulo   Izquierda/Derecha = potencia", 18, RGB(240, 240, 240));
    
 drawTextLine(
     hdc,
@@ -647,8 +713,7 @@ drawTextLine(
     22,
     RGB(255, 255, 255)
 );
-    drawTextLine(hdc, 12, WINDOW_HEIGHT - 24, "Atajos: N = nueva ronda   R = reiniciar partida", 18, RGB(240, 240, 240));
-    drawTextLine(hdc, WINDOW_WIDTH / 2 - 220, WINDOW_HEIGHT - 24, game.status, 18, RGB(255, 230, 180));
+    drawTextLine(hdc, 12, WINDOW_HEIGHT - 24, "Acciones: Espacio = disparar   N = nueva ronda   R = reiniciar partida", 18, RGB(240, 240, 240));
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
